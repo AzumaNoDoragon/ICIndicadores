@@ -18,7 +18,7 @@ IMG = {
     "img_17": {"label": "Real", "path": "img/img_17.png"},
     "img_18": {"label": "Real", "path": "img/img_18.png"},
     "img_19": {"label": "Sintetizada", "path": "img/img_19.jpg"},
-    "img_20": {"label": "Real", "path": "img/img_20.jpg"},
+    "img_20": {"label": "Sintetizada", "path": "img/img_20.jpg"},
     "img_21": {"label": "Sintetizada", "path": "img/img_21.jpg"},
     "img_22": {"label": "Sintetizada", "path": "img/img_22.jpg"},
     "img_23": {"label": "Sintetizada", "path": "img/img_23.jpg"},
