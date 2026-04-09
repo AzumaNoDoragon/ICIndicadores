@@ -43,6 +43,171 @@ def resultado(acertoImagem, col_imagens, gabarito):
         m_e.metric("Erros", total_min - acertos_min)
         m_t.metric("Taxa", f"{round(acertoImagem[idx_min]*100,1)}%")
 
+def taxaAcertoEtapa(df_imagens, col_imagens, gabarito):
+    st.header("Análise por Etapas")
+
+    etapa_size = 12
+
+    etapas = {
+        "Etapa 1": (0, etapa_size),
+        "Etapa 2": (etapa_size, etapa_size * 2),
+        "Etapa 3": (etapa_size * 2, etapa_size * 3),
+    }
+
+    resultados = {}
+
+    for nome, (inicio, fim) in etapas.items():
+        cols_etapa = col_imagens[inicio:fim]
+        gabarito_etapa = gabarito[inicio:fim]
+
+        total_respostas = 0
+        total_acertos = 0
+
+        total_real = 0
+        acertos_real = 0
+
+        total_fake = 0
+        acertos_fake = 0
+
+        for i, col in enumerate(cols_etapa):
+            respostas = df_imagens[col].dropna()
+            correto = gabarito_etapa[i]
+
+            acertos = (respostas == correto).sum()
+            total = len(respostas)
+
+            total_respostas += total
+            total_acertos += acertos
+
+            if correto == "Real":
+                total_real += total
+                acertos_real += acertos
+            else:
+                total_fake += total
+                acertos_fake += acertos
+
+        taxa_geral = total_acertos / total_respostas if total_respostas else 0
+        taxa_real = acertos_real / total_real if total_real else 0
+        taxa_fake = acertos_fake / total_fake if total_fake else 0
+
+        resultados[nome] = {
+            "geral": taxa_geral,
+            "real": taxa_real,
+            "fake": taxa_fake
+        }
+
+    for nome in etapas.keys():
+        st.subheader(nome)
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric("Taxa Geral", f"{resultados[nome]['geral']*100:.1f}%")
+        c2.metric("Taxa Reais", f"{resultados[nome]['real']*100:.1f}%")
+        c3.metric("Taxa Sintetizadas", f"{resultados[nome]['fake']*100:.1f}%")
+
+    st.subheader("Evolução entre Etapas")
+
+    def delta(a, b):
+        return (b - a) * 100
+
+    e1 = resultados["Etapa 1"]
+    e2 = resultados["Etapa 2"]
+    e3 = resultados["Etapa 3"]
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("### Etapa 1 → Etapa 2")
+        st.metric("Geral", f"{e1['geral']*100:.1f}%", f"{delta(e1['geral'], e2['geral']):+.1f}%")
+        st.metric("Reais", f"{e1['real']*100:.1f}%", f"{delta(e1['real'], e2['real']):+.1f}%")
+        st.metric("Sintetizadas", f"{e1['fake']*100:.1f}%", f"{delta(e1['fake'], e2['fake']):+.1f}%")
+
+    with col2:
+        st.markdown("### Etapa 2 → Etapa 3")
+        st.metric("Geral", f"{e2['geral']*100:.1f}%", f"{delta(e2['geral'], e3['geral']):+.1f}%")
+        st.metric("Reais", f"{e2['real']*100:.1f}%", f"{delta(e2['real'], e3['real']):+.1f}%")
+        st.metric("Sintetizadas", f"{e2['fake']*100:.1f}%", f"{delta(e2['fake'], e3['fake']):+.1f}%")
+    
+    with col3:
+        st.markdown("### Etapa 1 → Etapa 3")
+        st.metric("Geral", f"{e3['geral']*100:.1f}%", f"{delta(e1['geral'], e3['geral']):+.1f}%")
+        st.metric("Reais", f"{e3['real']*100:.1f}%", f"{delta(e1['real'], e3['real']):+.1f}%")
+        st.metric("Sintetizadas", f"{e3['fake']*100:.1f}%", f"{delta(e1['fake'], e3['fake']):+.1f}%")
+
+def taxaPorDificuldade(df_imagens, col_imagens, gabarito):
+    st.header("Análise por Dificuldade")
+
+    etapa_size = 12
+
+    etapas = {
+        "Etapa 1": (0, etapa_size),
+        "Etapa 2": (etapa_size, etapa_size * 2),
+        "Etapa 3": (etapa_size * 2, etapa_size * 3),
+    }
+
+    resultados = {}
+
+    for nome, (inicio, fim) in etapas.items():
+        cols_etapa = col_imagens[inicio:fim]
+
+        total = {"f": 0, "m": 0, "d": 0}
+        acertos = {"f": 0, "m": 0, "d": 0}
+
+        for i, col in enumerate(cols_etapa):
+            img_index = inicio + i + 1
+            img_key = f"img_{img_index}"
+            info = IMG[img_key]
+
+            if info["label"] != "Sintetizada":
+                continue  # ignora imagens reais
+
+            dificuldade = info["dif"]
+
+            respostas = df_imagens[col].dropna()
+            correto = "Sintetizada"
+
+            acertos_img = (respostas == correto).sum()
+            total_img = len(respostas)
+
+            total[dificuldade] += total_img
+            acertos[dificuldade] += acertos_img
+
+        taxas = {
+            k: (acertos[k] / total[k] if total[k] > 0 else 0)
+            for k in ["f", "m", "d"]
+        }
+
+        resultados[nome] = taxas
+
+    for nome in etapas.keys():
+        st.subheader(nome)
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric("Fácil", f"{resultados[nome]['f']*100:.1f}%")
+        c2.metric("Médio", f"{resultados[nome]['m']*100:.1f}%")
+        c3.metric("Difícil", f"{resultados[nome]['d']*100:.1f}%")
+
+    st.subheader("Evolução por Dificuldade")
+
+    def delta(a, b):
+        return (b - a) * 100
+
+    e1 = resultados["Etapa 1"]
+    e2 = resultados["Etapa 2"]
+    e3 = resultados["Etapa 3"]
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("### Fácil (E1 → E3)")
+        st.metric("Taxa", f"{e1['f']*100:.1f}%", f"{delta(e1['f'], e3['f']):+.1f}%")
+
+    with col2:
+        st.markdown("### Médio (E1 → E3)")
+        st.metric("Taxa", f"{e2['m']*100:.1f}%", f"{delta(e1['m'], e3['m']):+.1f}%")
+
+    with col3:
+        st.markdown("### Difícil (E1 → E3)")
+        st.metric("Taxa", f"{e3['d']*100:.1f}%", f"{delta(e1['d'], e3['d']):+.1f}%")
 
 st.set_page_config(layout="wide")
 st.title("Análise de Indicadores de Deepfakes")
@@ -136,3 +301,7 @@ if arquivo:
         resultadosCol(df_real_best, col_imagens)
         st.subheader("Mais erradas")
         resultadosCol(df_real, col_imagens)
+
+        taxaAcertoEtapa(df_imagens, col_imagens, gabarito)
+
+        taxaPorDificuldade(df_imagens, col_imagens, gabarito)
